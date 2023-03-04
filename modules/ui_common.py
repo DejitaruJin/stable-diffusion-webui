@@ -3,6 +3,9 @@ import html
 import os
 import platform
 import sys
+import re
+
+from copy import copy
 
 import gradio as gr
 import subprocess as sp
@@ -70,7 +73,15 @@ def save_files(js_data, images, do_make_zip, index):
             is_grid = image_index < p.index_of_first_image
             i = 0 if is_grid else (image_index - p.index_of_first_image)
 
-            fullfn, txt_fullfn = modules.images.save_image(image, path, "", seed=p.all_seeds[i], prompt=p.all_prompts[i], extension=extension, info=p.infotexts[image_index], grid=is_grid, p=p, save_to_dirs=save_to_dirs)
+            # HACK: File names use data from the 'p' object, but that often needs to be changed on a per-image basis:
+            tmp_p = copy(p)
+            tmp_p.prompt = p.all_prompts[i]
+            tmp_p.seed = p.all_seeds[i]
+            tmp_p.info = p.infotexts[image_index]
+            hash_match = re.search("Model hash: (\w+)", tmp_p.info)
+            tmp_p.sd_model_hash = hash_match.group(1) if hash_match.group(1) else ""
+
+            fullfn, txt_fullfn = modules.images.save_image(image, path, "", seed=tmp_p.seed, prompt=tmp_p.prompt, extension=extension, info=tmp_p.info, grid=is_grid, p=tmp_p, save_to_dirs=save_to_dirs)
 
             filename = os.path.relpath(fullfn, path)
             filenames.append(filename)
